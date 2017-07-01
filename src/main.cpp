@@ -24,7 +24,17 @@ std::string hasData(std::string s) {
 	return "";
 }
 
+void test() {
+	ParticleFilter pf;
+	pf.testInit();
+	double sigma_pos[3] = { 0, 0, 0};
+	pf.prediction(0.1, sigma_pos, 10, 0);
+	exit(0);
+
+
+}
 int main() {
+	test();
 	uWS::Hub h;
 
 	//Set up parameters here

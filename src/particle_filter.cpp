@@ -23,12 +23,16 @@ using Eigen::VectorXd;
 
 using namespace std;
 
+double normaliseAngle(const double angle) {
+	return atan2(sin(angle), cos(angle));
+}
+
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-	num_particles = 2;
+	num_particles = 1000;
 	auto sigma_x = std[0];
 	auto sigma_y = std[1];
 	auto sigma_theta = std[2];
@@ -37,17 +41,34 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	normal_distribution<double> dist_y(y, sigma_y);
 	normal_distribution<double> dist_theta(theta, sigma_theta);
 	for (auto count = 0; count < num_particles; ++count) {
-		double new_x = dist_x(gen);
-		double new_y = dist_y(gen);
-		double new_theta = dist_theta(gen);
 		Particle newParticle;
 		newParticle.id = count;
-		newParticle.x = new_x;
-		newParticle.y = new_y;
-		newParticle.x = new_theta;
+		newParticle.x = dist_x(gen);
+		newParticle.y = dist_y(gen);
+		newParticle.theta = dist_theta(gen);
+		newParticle.theta = normaliseAngle(newParticle.theta);
 		newParticle.weight = .0;
 		particles.push_back(newParticle);
 	}
+	is_initialized = true;
+}
+
+void ParticleFilter::testInit() {
+	num_particles = 2;
+	Particle newParticle1;
+	newParticle1.id=1;
+	newParticle1.x=10;
+	newParticle1.y=20;
+	newParticle1.theta=0;
+	newParticle1.weight=0;
+	Particle newParticle2;
+	newParticle2.id=2;
+	newParticle2.x=20;
+	newParticle2.y=10;
+	newParticle2.weight=0;
+	newParticle2.theta=3.1415926535/2;
+	particles.push_back(newParticle1);
+	particles.push_back(newParticle2);
 	is_initialized = true;
 }
 
@@ -66,31 +87,60 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 	normal_distribution<double> dist_theta(0, sigma_theta);
 
 	for (auto & particle: particles) {
-		double xUpdated, yUpdated, thetaUpdated;
 		if (yaw_rate== 0) {
-			xUpdated=particle.x+velocity*delta_t*cos(particle.theta);
-			yUpdated=particle.y+velocity*delta_t*sin(particle.theta);
-			thetaUpdated=particle.theta;
+			particle.x+=velocity*delta_t*cos(particle.theta);
+			particle.y+=velocity*delta_t*sin(particle.theta);
+			// particle.theta remains unchanged
 		}
 		else {
-			xUpdated=particle.x+velocity/yaw_rate*(sin(particle.theta+yaw_rate*delta_t)-sin(particle.theta));
-			yUpdated=particle.y+velocity/yaw_rate*(cos(particle.theta)-cos(particle.theta+yaw_rate*delta_t));
-			thetaUpdated=particle.theta+yaw_rate*delta_t;
+			particle.x+=velocity/yaw_rate*(sin(particle.theta+yaw_rate*delta_t)-sin(particle.theta));
+			particle.y+=velocity/yaw_rate*(cos(particle.theta)-cos(particle.theta+yaw_rate*delta_t));
+			particle.theta+=yaw_rate*delta_t;
+			particle.theta= normaliseAngle(particle.theta);
 		}
-		particle.x= xUpdated+dist_x(gen);
-		particle.y=yUpdated+dist_y(gen);
-		particle.theta=thetaUpdated+dist_theta(gen);
+		if (sigma_x>0)
+			particle.x+=dist_x(gen);
+		if (sigma_y>0)
+			particle.y+=dist_y(gen);
+		if (sigma_theta>0) {
+			particle.theta+=dist_theta(gen);
+			particle.theta= normaliseAngle(particle.theta);
+		}
 	}
 }
 
-void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted,
-		std::vector<LandmarkObs>& observations) {
-	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the 
-	//   observed measurement to this particular landmark.
-	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
-	//   implement this method and use it as a helper during the updateWeights phase.
-
+vector<LandmarkObs> ParticleFilter::convertLocalToGlobal(const double x, const double y, const double theta, vector<LandmarkObs> observations) {
+	vector<LandmarkObs> observationsGlobalRef;
+	for (auto observation: observations) {
+		LandmarkObs landmarkGlobalRef;
+		landmarkGlobalRef.x = observation.x*cos(theta)-observation.y*sin(theta)+x;
+		landmarkGlobalRef.y = observation.x*sin(theta)+observation.y*cos(theta)+y;
+		landmarkGlobalRef.id = -1;  // Flag it hasn't been set yet
+		observationsGlobalRef.push_back(landmarkGlobalRef);
+	}
+	return observationsGlobalRef;
 }
+
+
+void ParticleFilter::matchObservationsWithLandmarks(vector<LandmarkObs> & observationsGlobalRef, const vector<Map::single_landmark_s> landmarks, double sensor_range) {
+	// Set the .id of every item (observation) in observationsGlobalRef to the id of the closest landmark within sensors range
+	auto maxSqDist=pow(sensor_range,2);
+	for (auto & observation: observationsGlobalRef) {
+		// Find the landmark which is the closest to the observation
+		double bestSqDist=DBL_MAX;
+		for (auto landmark: landmarks){
+			// Compute the square of the landmark-observation distance
+			auto sqDist= pow((observation.x-landmark.x_f),2)+pow((observation.y-landmark.y_f),2);
+			// Keep track of the closest match so far
+			if (sqDist < bestSqDist && sqDist<= maxSqDist) {
+				bestSqDist=sqDist;
+				observation.id=landmark.id_i;
+			}
+		}
+		assert(observation.id!=-1);  // If no measurement of landmark if within sensor range, we are in troubles!
+	}
+}
+
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		std::vector<LandmarkObs> observations, Map map_landmarks) {
@@ -105,7 +155,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
 
-	auto maxSqDist = pow(sensor_range,2);
 	auto covariance=MatrixXd(2,2);
 	covariance << std_landmark[0], 0, 0, std_landmark[1];
 	MatrixXd invCovariance = covariance.inverse();
@@ -113,33 +162,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	double weightsSum=0;
 	for(auto & particle: particles) {
 		// Recompute the observations in the particle reference system, and write them in observationsGlobalRef
-		vector<LandmarkObs> observationsGlobalRef;
-		for (auto observation: observations) {
-			auto theta = -particle.theta;
-			auto x_t= -particle.x;
-			auto y_t = -particle.y;
-			LandmarkObs landmarkGlobalRef;
-			landmarkGlobalRef.x = observation.x*cos(theta)-observation.y*sin(theta)+x_t;
-			landmarkGlobalRef.y = observation.x*sin(theta)+observation.y*cos(theta)+y_t;
-			landmarkGlobalRef.id = -1;  // Flag it hasn't been set yet
-			observationsGlobalRef.push_back(landmarkGlobalRef);
-		}
+		vector<LandmarkObs> observationsGlobalRef=convertLocalToGlobal(particle.x, particle.y, particle.theta, observations);
 
-		// Set the .id of every item (observation) in observationsGlobalRef to the id of the closest landmark
-		for (auto & observation: observationsGlobalRef) {
-			// Find the landmark which is the closest to the observation
-			double bestSqDist=DBL_MAX;
-			for (auto landmark: map_landmarks.landmark_list){
-				// Compute the square of the landmark-observation distance
-				auto sqDist= pow((observation.x-landmark.x_f),2)+pow((observation.y-landmark.y_f),2);
-				// Keep track of the closest match so far
-				if (sqDist < bestSqDist && sqDist<= maxSqDist) {
-					bestSqDist=sqDist;
-					observation.id=landmark.id_i;
-				}
-			}
-			assert(observation.id!=-1);  // If no measurement of landmark if within sensor range, we are in troubles!
-		}
+		matchObservationsWithLandmarks(observationsGlobalRef, map_landmarks.landmark_list, sensor_range);
 
 		// Compute the weight for the given particle
 		double weight=1;
@@ -160,9 +185,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	for (auto & particle: particles) {
 		particle.weight/=weightsSum;
 	}
-
-
-
 }
 
 void ParticleFilter::resample() {
@@ -170,6 +192,17 @@ void ParticleFilter::resample() {
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
+	vector<Particle> resampled;
+	vector<double> weights;
+	for (auto particle: particles)
+		weights.push_back(particle.weight);
+	default_random_engine gen;
+	discrete_distribution<> dist(begin(weights), end(weights));
+	for (auto count=0; count< num_particles; ++count) {
+		auto randomIndex= dist(gen);
+		resampled.push_back(particles[randomIndex]);
+	}
+	particles=resampled;
 }
 
 Particle ParticleFilter::SetAssociations(Particle particle,

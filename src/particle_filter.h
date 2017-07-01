@@ -1,6 +1,8 @@
 #pragma once
 
 #include "helper_functions.h"
+#include <vector>
+using std::vector;
 
 struct Particle {
 
@@ -24,6 +26,10 @@ class ParticleFilter {
 
 	// Vector of weights of all particles
 	std::vector<double> weights;
+
+	vector<LandmarkObs> convertLocalToGlobal(const double x, const double y, const double theta, vector<LandmarkObs> observations);
+
+	void matchObservationsWithLandmarks(vector<LandmarkObs> & observationsGlobalRef, const vector<Map::single_landmark_s> landmarks, const double sensor_range);
 
 public:
 
@@ -51,6 +57,8 @@ public:
 	 */
 	void init(double x, double y, double theta, double std[]);
 
+	void testInit();
+
 	/**
 	 * prediction Predicts the state for the next time step
 	 *   using the process model.
@@ -62,15 +70,6 @@ public:
 	 */
 	void prediction(double delta_t, double std_pos[], double velocity,
 			double yaw_rate);
-
-	/**
-	 * dataAssociation Finds which observations correspond to which landmarks (likely by using
-	 *   a nearest-neighbors data association).
-	 * @param predicted Vector of predicted landmark observations
-	 * @param observations Vector of landmark observations
-	 */
-	void dataAssociation(std::vector<LandmarkObs> predicted,
-			std::vector<LandmarkObs>& observations);
 
 	/**
 	 * updateWeights Updates the weights for each particle based on the likelihood of the 
