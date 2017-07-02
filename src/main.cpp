@@ -24,17 +24,56 @@ std::string hasData(std::string s) {
 	return "";
 }
 
+bool near(double a,double b) {
+	double epsilon = 0.000001;
+	return (abs(a-b)< epsilon)? true: false;
+}
+
 void test() {
 	ParticleFilter pf;
 	pf.testInit();
 	double sigma_pos[3] = { 0, 0, 0};
 	pf.prediction(0.1, sigma_pos, 10, 0);
-	exit(0);
+	assert(pf.particles.size()==2);
+	assert(near(pf.particles[0].theta,0));
+	assert(near(pf.particles[0].x,11));
+	assert(near(pf.particles[0].y,20));
+	assert(near(pf.particles[1].theta,M_PI/2));
+	assert(near(pf.particles[1].x,20));
+	assert(near(pf.particles[1].y,11));
 
+	double sensor_range=50;
+	double sigma_landmark[2] = { 0.3, 0.3 };
+	Map map;
+	map.landmark_list = vector<Map::single_landmark_s>(3);
+	map.landmark_list[0].id_i=1;
+	map.landmark_list[0].x_f=0;
+	map.landmark_list[0].y_f=0;
+	map.landmark_list[1].id_i=2;
+	map.landmark_list[1].x_f=30;
+	map.landmark_list[1].y_f=30;
+	map.landmark_list[2].id_i=3;
+	map.landmark_list[2].x_f=100;
+	map.landmark_list[2].y_f=100;
+
+	std::vector<LandmarkObs> observations(3);
+	observations[0].id=-1;
+	observations[0].x=-10;
+	observations[0].y=-20;
+	observations[1].id=-1;
+	observations[1].x=20;
+	observations[1].y=10;
+	observations[2].id=-1;
+	observations[2].x=90;
+	observations[2].y=80;
+
+	pf.updateWeights(sensor_range, sigma_landmark, observations, map);
+	cout << "Unit test done" << endl;
+	exit(0);
 
 }
 int main() {
-	test();
+	//test();
 	uWS::Hub h;
 
 	//Set up parameters here

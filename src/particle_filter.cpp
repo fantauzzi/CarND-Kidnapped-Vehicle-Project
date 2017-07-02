@@ -1,10 +1,3 @@
-/*
- * particle_filter.cpp
- *
- *  Created on: Dec 12, 2016
- *      Author: Tiffany Huang
- */
-
 #include <random>
 #include <algorithm>
 #include <iostream>
@@ -15,9 +8,7 @@
 #include <string>
 #include <iterator>
 #include <cfloat>
-#include <Eigen/Dense>
-using Eigen::MatrixXd;
-using Eigen::VectorXd;
+#include <cassert>
 
 #include "particle_filter.h"
 
@@ -47,7 +38,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		newParticle.y = dist_y(gen);
 		newParticle.theta = dist_theta(gen);
 		newParticle.theta = normaliseAngle(newParticle.theta);
-		newParticle.weight = .0;
+		newParticle.weight = 1./num_particles;
 		particles.push_back(newParticle);
 	}
 	is_initialized = true;
@@ -60,12 +51,12 @@ void ParticleFilter::testInit() {
 	newParticle1.x=10;
 	newParticle1.y=20;
 	newParticle1.theta=0;
-	newParticle1.weight=0;
+	newParticle1.weight=1./num_particles;
 	Particle newParticle2;
 	newParticle2.id=2;
 	newParticle2.x=20;
 	newParticle2.y=10;
-	newParticle2.weight=0;
+	newParticle2.weight=1./num_particles;
 	newParticle2.theta=3.1415926535/2;
 	particles.push_back(newParticle1);
 	particles.push_back(newParticle2);
@@ -122,22 +113,21 @@ vector<LandmarkObs> ParticleFilter::convertLocalToGlobal(const double x, const d
 }
 
 
-void ParticleFilter::matchObservationsWithLandmarks(vector<LandmarkObs> & observationsGlobalRef, const vector<Map::single_landmark_s> landmarks, double sensor_range) {
+void ParticleFilter::matchObservationsWithLandmarks(vector<LandmarkObs> & observationsGlobalRef, const vector<Map::single_landmark_s> landmarks) {
 	// Set the .id of every item (observation) in observationsGlobalRef to the id of the closest landmark within sensors range
-	auto maxSqDist=pow(sensor_range,2);
 	for (auto & observation: observationsGlobalRef) {
 		// Find the landmark which is the closest to the observation
 		double bestSqDist=DBL_MAX;
-		for (auto landmark: landmarks){
+		for (auto iLandmark=0; iLandmark< landmarks.size(); ++iLandmark){
 			// Compute the square of the landmark-observation distance
-			auto sqDist= pow((observation.x-landmark.x_f),2)+pow((observation.y-landmark.y_f),2);
+			auto sqDist= pow((observation.x-landmarks[iLandmark].x_f),2)+pow((observation.y-landmarks[iLandmark].y_f),2);
 			// Keep track of the closest match so far
-			if (sqDist < bestSqDist && sqDist<= maxSqDist) {
+			if (sqDist < bestSqDist) {
 				bestSqDist=sqDist;
-				observation.id=landmark.id_i;
+				observation.id=iLandmark;
 			}
 		}
-		assert(observation.id!=-1);  // If no measurement of landmark if within sensor range, we are in troubles!
+		// assert(observation.id!=-1);  // If no measurement of landmark if within sensor range, we are in troubles!
 	}
 }
 
@@ -155,27 +145,40 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
 
-	auto covariance=MatrixXd(2,2);
-	covariance << std_landmark[0], 0, 0, std_landmark[1];
-	MatrixXd invCovariance = covariance.inverse();
+	// auto covariance=MatrixXd(2,2);
+	// covariance << std_landmark[0], 0, 0, std_landmark[1];
+	// MatrixXd invCovariance = covariance.inverse();
 
 	double weightsSum=0;
 	for(auto & particle: particles) {
-		// Recompute the observations in the particle reference system, and write them in observationsGlobalRef
-		vector<LandmarkObs> observationsGlobalRef=convertLocalToGlobal(particle.x, particle.y, particle.theta, observations);
+		// Compile list of observations that fall within sensor range. TODO move to main.cpp and do it right!
+		vector<LandmarkObs> obsInRange;
+		for (auto obs: observations) {
+			double dist= sqrt(pow(obs.x-particle.x,2)+pow(obs.y-particle.y,2));
+			if (dist<sensor_range)
+				obsInRange.push_back(obs);
+		}
 
-		matchObservationsWithLandmarks(observationsGlobalRef, map_landmarks.landmark_list, sensor_range);
+		vector<Map::single_landmark_s> landmarksInRange;
+		for (auto landmark: map_landmarks.landmark_list) {
+			double dist= sqrt(pow(landmark.x_f-particle.x,2)+pow(landmark.y_f-particle.y,2));
+			if (dist<sensor_range)
+				landmarksInRange.push_back(landmark);
+		}
+
+		// Recompute the observations in the particle reference system, and write them in observationsGlobalRef
+		vector<LandmarkObs> observationsGlobalRef=convertLocalToGlobal(particle.x, particle.y, particle.theta, obsInRange);
+
+		matchObservationsWithLandmarks(observationsGlobalRef, landmarksInRange);
 
 		// Compute the weight for the given particle
 		double weight=1;
 		for (auto observation: observationsGlobalRef) {
-			VectorXd x(2);
-			x<< observation.x, observation.y;
-			VectorXd mu(2);
-			mu << map_landmarks.landmark_list[observation.id].x_f, map_landmarks.landmark_list[observation.id].y_f ;
-			VectorXd xDiff =x-mu;
-			double res= xDiff.transpose()*invCovariance*xDiff;
-			weight*=exp(-res/2);
+			auto mu_x= landmarksInRange[observation.id].x_f;
+			auto mu_y= landmarksInRange[observation.id].y_f;
+			auto sigma_x = std_landmark[0];
+			auto sigma_y = std_landmark[1];
+			weight*= exp(-(pow(observation.x-mu_x,2)/(2*pow(sigma_x,2))+pow(observation.y-mu_y,2)/(2*pow(sigma_y,2))))/(2*M_PI*sigma_x*sigma_y);
 		}
 		particle.weight = weight;
 		weightsSum+=weight;
@@ -200,6 +203,8 @@ void ParticleFilter::resample() {
 	discrete_distribution<> dist(begin(weights), end(weights));
 	for (auto count=0; count< num_particles; ++count) {
 		auto randomIndex= dist(gen);
+		assert(randomIndex>=0);
+		assert(randomIndex<particles.size());
 		resampled.push_back(particles[randomIndex]);
 	}
 	particles=resampled;

@@ -29,7 +29,7 @@ class ParticleFilter {
 
 	vector<LandmarkObs> convertLocalToGlobal(const double x, const double y, const double theta, vector<LandmarkObs> observations);
 
-	void matchObservationsWithLandmarks(vector<LandmarkObs> & observationsGlobalRef, const vector<Map::single_landmark_s> landmarks, const double sensor_range);
+	void matchObservationsWithLandmarks(vector<LandmarkObs> & observationsGlobalRef, const vector<Map::single_landmark_s> landmarks);
 
 public:
 
