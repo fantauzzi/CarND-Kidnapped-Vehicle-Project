@@ -18,12 +18,13 @@ double normaliseAngle(const double angle) {
 	return atan2(sin(angle), cos(angle));
 }
 
+
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-	num_particles = 1000;
+	num_particles = 100;
 	auto sigma_x = std[0];
 	auto sigma_y = std[1];
 	auto sigma_theta = std[2];
@@ -118,7 +119,7 @@ void ParticleFilter::matchObservationsWithLandmarks(vector<LandmarkObs> & observ
 	for (auto & observation: observationsGlobalRef) {
 		// Find the landmark which is the closest to the observation
 		double bestSqDist=DBL_MAX;
-		for (auto iLandmark=0; iLandmark< landmarks.size(); ++iLandmark){
+		for (unsigned iLandmark=0; iLandmark< landmarks.size(); ++iLandmark){
 			// Compute the square of the landmark-observation distance
 			auto sqDist= pow((observation.x-landmarks[iLandmark].x_f),2)+pow((observation.y-landmarks[iLandmark].y_f),2);
 			// Keep track of the closest match so far
@@ -150,44 +151,53 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	// MatrixXd invCovariance = covariance.inverse();
 
 	double weightsSum=0;
+
 	for(auto & particle: particles) {
 		// Compile list of observations that fall within sensor range. TODO move to main.cpp and do it right!
-		vector<LandmarkObs> obsInRange;
+		/*vector<LandmarkObs> obsInRange;
 		for (auto obs: observations) {
 			double dist= sqrt(pow(obs.x-particle.x,2)+pow(obs.y-particle.y,2));
 			if (dist<sensor_range)
 				obsInRange.push_back(obs);
-		}
+		}*/
 
-		vector<Map::single_landmark_s> landmarksInRange;
+		/*vector<Map::single_landmark_s> landmarksInRange;
 		for (auto landmark: map_landmarks.landmark_list) {
 			double dist= sqrt(pow(landmark.x_f-particle.x,2)+pow(landmark.y_f-particle.y,2));
 			if (dist<sensor_range)
 				landmarksInRange.push_back(landmark);
-		}
+		}*/
 
 		// Recompute the observations in the particle reference system, and write them in observationsGlobalRef
-		vector<LandmarkObs> observationsGlobalRef=convertLocalToGlobal(particle.x, particle.y, particle.theta, obsInRange);
+		vector<LandmarkObs> observationsGlobalRef=convertLocalToGlobal(particle.x, particle.y, particle.theta, observations);
 
-		matchObservationsWithLandmarks(observationsGlobalRef, landmarksInRange);
+		matchObservationsWithLandmarks(observationsGlobalRef, map_landmarks.landmark_list);
 
 		// Compute the weight for the given particle
 		double weight=1;
+		// Empty visualisation and debugging information, to fill it in below
+		particle.associations.clear();
+		particle.sense_x.clear();
+		particle.sense_y.clear();
 		for (auto observation: observationsGlobalRef) {
-			auto mu_x= landmarksInRange[observation.id].x_f;
-			auto mu_y= landmarksInRange[observation.id].y_f;
+			auto mu_x= map_landmarks.landmark_list[observation.id].x_f;
+			auto mu_y= map_landmarks.landmark_list[observation.id].y_f;
 			auto sigma_x = std_landmark[0];
 			auto sigma_y = std_landmark[1];
 			weight*= exp(-(pow(observation.x-mu_x,2)/(2*pow(sigma_x,2))+pow(observation.y-mu_y,2)/(2*pow(sigma_y,2))))/(2*M_PI*sigma_x*sigma_y);
+			// Update visualisation and debugging information
+			particle.associations.push_back(map_landmarks.landmark_list[observation.id].id_i);
+			particle.sense_x.push_back(observation.x);
+			particle.sense_y.push_back(observation.y);
 		}
 		particle.weight = weight;
 		weightsSum+=weight;
 	}
 
 	// Now all particles have the weights updated, but they still need to be normalised (ensure they add up to 1)
-	for (auto & particle: particles) {
+	/*for (auto & particle: particles) {
 		particle.weight/=weightsSum;
-	}
+	}*/
 }
 
 void ParticleFilter::resample() {
@@ -204,7 +214,7 @@ void ParticleFilter::resample() {
 	for (auto count=0; count< num_particles; ++count) {
 		auto randomIndex= dist(gen);
 		assert(randomIndex>=0);
-		assert(randomIndex<particles.size());
+		assert(static_cast<unsigned>(randomIndex)<particles.size());
 		resampled.push_back(particles[randomIndex]);
 	}
 	particles=resampled;

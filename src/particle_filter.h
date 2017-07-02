@@ -25,7 +25,7 @@ class ParticleFilter {
 	bool is_initialized;
 
 	// Vector of weights of all particles
-	std::vector<double> weights;
+	//std::vector<double> weights;
 
 	vector<LandmarkObs> convertLocalToGlobal(const double x, const double y, const double theta, vector<LandmarkObs> observations);
 
