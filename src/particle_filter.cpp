@@ -15,7 +15,8 @@
 using namespace std;
 
 double normaliseAngle(const double angle) {
-	return atan2(sin(angle), cos(angle));
+	return angle;
+	//return atan2(sin(angle), cos(angle));
 }
 
 
