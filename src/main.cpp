@@ -33,7 +33,7 @@ void test() {
 	ParticleFilter pf;
 	pf.testInit();
 	double sigma_pos[3] = { 0, 0, 0};
-	pf.prediction(0.1, sigma_pos, 10, 0);
+	pf.predict(0.1, sigma_pos, 10, 0);
 	assert(pf.particles.size()==2);
 	assert(near(pf.particles[0].theta,0));
 	assert(near(pf.particles[0].x,11));
@@ -125,7 +125,7 @@ int main() {
 								double previous_velocity = std::stod(j[1]["previous_velocity"].get<std::string>());
 								double previous_yawrate = std::stod(j[1]["previous_yawrate"].get<std::string>());
 
-								pf.prediction(delta_t, sigma_pos, previous_velocity, previous_yawrate);
+								pf.predict(delta_t, sigma_pos, previous_velocity, previous_yawrate);
 							}
 
 							// receive noisy observation data from the simulator
@@ -173,9 +173,9 @@ int main() {
 								}
 								weight_sum += particles[i].weight;
 							}
-							cout << "highest w " << highest_weight << endl;
-							cout << "average w " << weight_sum/num_particles << endl;
-							cout << "best particle pose x="<< best_particle.x << " y=" << best_particle.y << " theta=" << best_particle.theta << endl;
+							// cout << "highest w " << highest_weight << endl;
+							// cout << "average w " << weight_sum/num_particles << endl;
+							// cout << "best particle pose x="<< best_particle.x << " y=" << best_particle.y << " theta=" << best_particle.theta << endl;
 
 							json msgJson;
 							msgJson["best_particle_x"] = best_particle.x;

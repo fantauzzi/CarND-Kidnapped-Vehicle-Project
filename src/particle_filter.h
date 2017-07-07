@@ -19,13 +19,10 @@ struct Particle {
 class ParticleFilter {
 
 	// Number of particles to draw
-	int num_particles;
+	int numParticles;
 
 	// Flag, if filter is initialized
-	bool is_initialized;
-
-	// Vector of weights of all particles
-	//std::vector<double> weights;
+	bool isInitialized;
 
 	vector<LandmarkObs> convertLocalToGlobal(const double x, const double y, const double theta, vector<LandmarkObs> observations);
 
@@ -39,7 +36,7 @@ public:
 	// Constructor
 	// @param M Number of particles
 	ParticleFilter() :
-			num_particles(0), is_initialized(false) {
+			numParticles(0), isInitialized(false) {
 	}
 
 	// Destructor
@@ -68,7 +65,7 @@ public:
 	 * @param velocity Velocity of car from t to t+1 [m/s]
 	 * @param yaw_rate Yaw rate of car from t to t+1 [rad/s]
 	 */
-	void prediction(double delta_t, double std_pos[], double velocity,
+	void predict(double delta_t, double std_pos[], double velocity,
 			double yaw_rate);
 
 	/**
@@ -93,7 +90,7 @@ public:
 	 * Set a particles list of associations, along with the associations calculated world x,y coordinates
 	 * This can be a very useful debugging tool to make sure transformations are correct and assocations correctly connected
 	 */
-	Particle SetAssociations(Particle particle, std::vector<int> associations,
+	Particle setAssociations(Particle particle, std::vector<int> associations,
 			std::vector<double> sense_x, std::vector<double> sense_y);
 
 	std::string getAssociations(Particle best);
@@ -104,7 +101,7 @@ public:
 	 * initialized Returns whether particle filter is initialized yet or not.
 	 */
 	const bool initialized() const {
-		return is_initialized;
+		return isInitialized;
 	}
 };
 
