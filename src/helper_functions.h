@@ -61,7 +61,7 @@ inline double * getError(double gt_x, double gt_y, double gt_theta, double pf_x,
  * @param filename Name of file containing map data.
  * @output True if opening and reading file was successful
  */
-inline bool read_map_data(std::string filename, Map& map) {
+inline bool readMapData(std::string filename, Map& map) {
 
 	// Get file of map:
 	std::ifstream in_file_map(filename.c_str(), std::ifstream::in);
