@@ -34,7 +34,7 @@ Once cloned (or downloaded) the project repository, in the project directory typ
 2. `cd build`
 3. `cmake ..`
 4. `make`
-5. `./UnscentedKF` TODO check!
+5. `./particle_filter`
 
 Run the simulator, make sure **Project 3: Kidnapped Vehicle** is selected in the simulator and click **SELECT**. Click **Start** to have the simulator begin to send data to the running Particle Filter implementation and display its results. 
 
