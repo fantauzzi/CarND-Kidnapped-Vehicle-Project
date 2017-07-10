@@ -40,7 +40,7 @@ void ParticleFilter::initialise(double x, double y, double theta, double std[], 
 		particles.push_back(newParticle);
 	}
 
-	// Intialisation done
+	// Initialisation done
 	isInitialized = true;
 }
 
@@ -174,6 +174,19 @@ void ParticleFilter::resample() {
 	particles=resampled;
 }
 
+Particle ParticleFilter::getBestParticle() const {
+	double highest_weight = -1.0;
+	Particle bestParticle;
+	for (const auto particle: particles)
+		if (particle.weight > highest_weight) {
+			highest_weight = particle.weight;
+			bestParticle = particle;
+		}
+	return bestParticle;
+}
+
+// Code below coming from Udacity's starter code
+
 string ParticleFilter::getAssociations(Particle best) {
 	vector<int> v = best.associations;
 	stringstream ss;
@@ -198,15 +211,3 @@ string ParticleFilter::getSenseY(Particle best) {
 	s = s.substr(0, s.length() - 1);  // get rid of the trailing space
 	return s;
 }
-
-Particle ParticleFilter::getBestParticle() const {
-	double highest_weight = -1.0;
-	Particle bestParticle;
-	for (const auto particle: particles)
-		if (particle.weight > highest_weight) {
-			highest_weight = particle.weight;
-			bestParticle = particle;
-		}
-	return bestParticle;
-}
-

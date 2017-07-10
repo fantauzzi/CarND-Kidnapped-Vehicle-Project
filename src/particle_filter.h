@@ -7,14 +7,23 @@ using std::vector;
 
 struct Particle {
 
-	int id;
+	int id;  // unique ID for the particle in the filter, filled in but not used in this program
+
+	/*
+	 * The particle pose
+	 */
 	double x;
 	double y;
 	double theta;
-	double weight;
-	std::vector<int> associations;
-	std::vector<double> sense_x;
-	std::vector<double> sense_y;
+
+	double weight;  // The particle weight
+
+	/*
+	 * Info for visualisation in the simulator and debugging
+	 */
+	std::vector<int> associations;  // IDs of landmarks observed from the particle
+	std::vector<double> sense_x;  // x coordinate of observed landmarks in the map reference system
+	std::vector<double> sense_y;  // y coordinate of observed landmarks in the map reference system
 };
 
 class ParticleFilter {

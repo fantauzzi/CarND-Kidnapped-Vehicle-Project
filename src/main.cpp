@@ -85,7 +85,7 @@ int main() {
 
 	// Read map data
 	Map map;
-	if (!readMapData("./data/map_data.txt", map)) { // TODO change this to "../data/map_data.txt" before handing it in!
+	if (!readMapData("../data/map_data.txt", map)) { // TODO change this to "../data/map_data.txt" before handing it in!
 		cout << "Error: Could not open map file" << endl;
 		return -1;
 	}
